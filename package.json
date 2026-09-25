@@ -1,0 +1,18 @@
+{
+  "name": "jharkhand-industrial-safety-simulator",
+  "version": "1.0.0",
+  "description": "AR-ready 3D Industrial Safety Training Simulator for Jharkhand Mining & Manufacturing",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.170.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}

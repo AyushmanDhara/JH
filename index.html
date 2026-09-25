@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a1628" />
+  <meta name="description" content="Jharkhand Industrial Safety Simulator - Learn. Practice. Respond. Stay Safe." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Jharkhand Industrial Safety Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/styles/main.css" />
+</head>
+<body>
+  <div id="webgl-error" class="screen" style="display:none;background:#060d18;z-index:999">
+    <div class="glass-card" style="text-align:center;max-width:420px">
+      <h2 style="color:#ff6b6b">3D Graphics Unavailable</h2>
+      <p style="color:var(--text-secondary);margin:1rem 0">Your browser or device does not support the required WebGL features for this simulator.</p>
+      <p style="color:var(--text-muted);font-size:0.85rem">Try updating your browser or enabling hardware acceleration.</p>
+    </div>
+  </div>
+  <div id="app">
+    <!-- 3D Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="screen active">
+      <div class="loading-content">
+        <div class="logo-mark">JH</div>
+        <h1>JHARKHAND</h1>
+        <h2>INDUSTRIAL SAFETY SIMULATOR</h2>
+        <p class="tagline">Learn. Practice. Respond. Stay Safe.</p>
+        <div class="loading-bar-container">
+          <div id="loading-bar" class="loading-bar"></div>
+        </div>
+        <p id="loading-text">Initializing systems...</p>
+      </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen">
+      <div class="menu-overlay"></div>
+      <div class="menu-content">
+        <div class="menu-header">
+          <div class="logo-mark large">JH</div>
+          <h1>JHARKHAND</h1>
+          <h2>INDUSTRIAL SAFETY SIMULATOR</h2>
+          <p class="tagline">Learn. Practice. Respond. Stay Safe.</p>
+        </div>
+        <nav class="menu-nav">
+          <button class="menu-btn primary" data-action="start">START TRAINING</button>
+          <button class="menu-btn" data-action="modules">TRAINING MODULES</button>
+          <button class="menu-btn" data-action="progress">PROGRESS</button>
+          <button class="menu-btn" data-action="certificates">CERTIFICATES</button>
+          <button class="menu-btn" data-action="tutorial">TUTORIAL & SAFETY</button>
+          <button class="menu-btn" data-action="howto">HOW TO PLAY</button>
+          <button class="menu-btn" data-action="settings">SETTINGS</button>
+        </nav>
+        <div class="menu-footer">
+          <div id="lang-selector" class="lang-selector">
+            <button data-lang="en" class="lang-btn active">EN</button>
+            <button data-lang="hi" class="lang-btn">हिन्दी</button>
+            <button data-lang="sat" class="lang-btn">ᱥᱟᱱᱛᱟᱲᱤ</button>
+          </div>
+          <div id="offline-indicator" class="offline-indicator hidden">● OFFLINE MODE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hud hidden">
+      <div class="hud-top">
+        <div class="hud-panel glass" id="module-panel">
+          <span class="hud-label" id="module-name">FIRE & EXPLOSION RESPONSE</span>
+        </div>
+        <div class="hud-panel glass score-panel" id="score-panel">
+          <span class="hud-label">SAFETY SCORE</span>
+          <span class="score-value" id="score-value">100</span>
+        </div>
+      </div>
+      <div class="hud-center">
+        <div id="objective-panel" class="hud-panel glass objective-panel">
+          <span class="obj-label">OBJECTIVE</span>
+          <span class="obj-text" id="objective-text">Find the correct extinguisher.</span>
+        </div>
+      </div>
+      <div class="hud-bottom">
+        <div id="interaction-prompt" class="interaction-prompt hidden">
+          <span class="key">E</span>
+          <span class="prompt-text">INTERACT</span>
+        </div>
+        <div id="notification-area" class="notification-area"></div>
+      </div>
+      <div class="hud-right">
+        <button id="pause-btn" class="hud-btn glass" title="Pause">⏸</button>
+      </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" class="mobile-controls hidden">
+      <div id="joystick-zone" class="joystick-zone">
+        <div id="joystick-base" class="joystick-base">
+          <div id="joystick-stick" class="joystick-stick"></div>
+        </div>
+      </div>
+      <div class="mobile-buttons">
+        <button id="btn-sprint" class="mobile-btn">SPRINT</button>
+        <button id="btn-jump" class="mobile-btn">JUMP</button>
+        <button id="btn-interact" class="mobile-btn primary">E</button>
+      </div>
+      <div id="look-zone" class="look-zone"></div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="screen">
+      <div class="glass-card pause-card">
+        <h2>PAUSED</h2>
+        <button class="menu-btn" data-action="resume">RESUME</button>
+        <button class="menu-btn" data-action="restart-module">RESTART MODULE</button>
+        <button class="menu-btn" data-action="exit-to-training">TRAINING MENU</button>
+        <button class="menu-btn" data-action="main-menu">MAIN MENU</button>
+      </div>
+    </div>
+
+    <!-- Assessment Modal -->
+    <div id="assessment-modal" class="screen">
+      <div class="glass-card assessment-card">
+        <h2 id="assess-title">TRAINING ASSESSMENT</h2>
+        <div class="assess-stats">
+          <div class="stat"><span class="stat-label">Module</span><span id="assess-module">—</span></div>
+          <div class="stat"><span class="stat-label">Score</span><span id="assess-score">—</span></div>
+          <div class="stat"><span class="stat-label">Correct Decisions</span><span id="assess-correct">—</span></div>
+          <div class="stat"><span class="stat-label">Unsafe Actions</span><span id="assess-unsafe">—</span></div>
+          <div class="stat"><span class="stat-label">Response Time</span><span id="assess-time">—</span></div>
+          <div class="stat result"><span class="stat-label">Result</span><span id="assess-result">—</span></div>
+        </div>
+        <div id="quiz-section" class="quiz-section hidden">
+          <h3>Knowledge Check</h3>
+          <div id="quiz-container"></div>
+        </div>
+        <div class="assess-actions">
+          <button id="btn-continue-assess" class="menu-btn primary">CONTINUE</button>
+          <button id="btn-assess-training" class="menu-btn">TRAINING MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Certificate Modal -->
+    <div id="certificate-modal" class="screen">
+      <div class="glass-card cert-card" id="certificate-content">
+        <div class="cert-header">
+          <div class="logo-mark">JH</div>
+          <h2>INDUSTRIAL SAFETY TRAINING CERTIFICATE</h2>
+        </div>
+        <div class="cert-body">
+          <p>This certifies that</p>
+          <h3 id="cert-name">Trainee</h3>
+          <p>has successfully completed</p>
+          <h4 id="cert-module">Module Name</h4>
+          <div class="cert-details">
+            <div><span>Score</span><strong id="cert-score">—</strong></div>
+            <div><span>Duration</span><strong id="cert-duration">—</strong></div>
+            <div><span>Date</span><strong id="cert-date">—</strong></div>
+            <div><span>Certificate ID</span><strong id="cert-id">—</strong></div>
+          </div>
+          <div id="cert-qr" class="cert-qr"></div>
+        </div>
+        <div class="cert-actions">
+          <button id="btn-download-cert" class="menu-btn">DOWNLOAD</button>
+          <button id="btn-close-cert" class="menu-btn primary">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modules Menu -->
+    <div id="modules-menu" class="screen">
+      <div class="glass-card modules-card">
+        <h2>TRAINING MODULES</h2>
+        <p id="modules-notice" class="modules-notice hidden" role="status"></p>
+        <div class="modules-grid">
+          <button class="module-card" data-module="fire">
+            <span class="mod-icon">🔥</span>
+            <span class="mod-title">Fire & Explosion</span>
+            <span class="mod-status">Ready</span>
+          </button>
+          <button class="module-card" data-module="gas">
+            <span class="mod-icon">☁️</span>
+            <span class="mod-title">Gas Leak & Confined Space</span>
+            <span class="mod-status">Ready</span>
+          </button>
+          <button class="module-card" data-module="machinery">
+            <span class="mod-icon">⚙️</span>
+            <span class="mod-title">Machinery Safety</span>
+            <span class="mod-status">Ready</span>
+          </button>
+          <button class="module-card" data-module="ppe">
+            <span class="mod-icon">🦺</span>
+            <span class="mod-title">PPE Training</span>
+            <span class="mod-status">Ready</span>
+          </button>
+        </div>
+        <button class="menu-btn" data-action="back-menu">BACK</button>
+      </div>
+    </div>
+
+    
+    <!-- Tutorial & Safety Guide -->
+    <div id="tutorial-menu" class="screen">
+      <div class="glass-card tutorial-card">
+        <h2>TUTORIAL & SAFETY GUIDE</h2>
+        <div class="tutorial-tabs">
+          <button class="tab-btn active" data-tab="controls">Controls</button>
+          <button class="tab-btn" data-tab="safety">Safety Guide</button>
+          <button class="tab-btn" data-tab="videos">Training Videos</button>
+          <button class="tab-btn" data-tab="scoring">Scoring</button>
+        </div>
+        <div id="tutorial-panel" class="tutorial-panel"></div>
+        <div class="tutorial-actions">
+          <button class="menu-btn primary" data-action="start-interactive-tutorial">START TRAINING</button>
+          <button class="menu-btn" data-action="back-menu">BACK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- How to Play -->
+    <div id="howto-menu" class="screen">
+      <div class="glass-card howto-card">
+        <h2>HOW TO PLAY</h2>
+        <div class="howto-content">
+          <h3>Desktop</h3>
+          <ul>
+            <li><kbd>W A S D</kbd> — Move</li>
+            <li><kbd>Mouse</kbd> — Look</li>
+            <li><kbd>Shift</kbd> — Sprint</li>
+            <li><kbd>Space</kbd> — Jump</li>
+            <li><kbd>E</kbd> — Interact</li>
+            <li><kbd>Esc</kbd> — Pause</li>
+          </ul>
+          <h3>Mobile</h3>
+          <ul>
+            <li>Left joystick — Move</li>
+            <li>Right area — Look</li>
+            <li>Buttons — Sprint / Jump / Interact</li>
+          </ul>
+          <h3>Goal</h3>
+          <p>Choose a training module, complete its interactive objectives, pass the assessment, and earn your certificate.</p>
+        </div>
+        <button class="menu-btn" data-action="back-menu">BACK</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-menu" class="screen">
+      <div class="glass-card settings-card">
+        <h2>SETTINGS</h2>
+        <div class="settings-list">
+          <label>Trainee Name
+            <input type="text" id="setting-name" placeholder="Enter your name" value="Trainee" />
+          </label>
+          <label>Graphics Quality
+            <select id="setting-quality">
+              <option value="low">Low (Mobile)</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <p id="quality-hint" class="settings-hint hidden">Saved — graphics quality applies the next time the simulator starts.</p>
+          <label>Sound
+            <input type="range" id="setting-volume" min="0" max="100" value="70" />
+          </label>
+        </div>
+        <button class="menu-btn" data-action="back-menu">BACK</button>
+      </div>
+    </div>
+
+    <!-- Progress / Certificates simple views -->
+    <div id="progress-menu" class="screen">
+      <div class="glass-card">
+        <h2>PROGRESS</h2>
+        <div id="progress-content"></div>
+        <button class="menu-btn" data-action="back-menu">BACK</button>
+      </div>
+    </div>
+
+    <div id="certificates-menu" class="screen">
+      <div class="glass-card">
+        <h2>CERTIFICATES</h2>
+        <div id="certificates-list"></div>
+        <button class="menu-btn" data-action="back-menu">BACK</button>
+      </div>
+    </div>
+
+    <!-- Name prompt for certificate -->
+    <div id="name-prompt" class="screen">
+      <div class="glass-card">
+        <h2>Enter Your Name</h2>
+        <input type="text" id="trainee-name-input" placeholder="Your full name" autocomplete="name" />
+        <button id="btn-confirm-name" class="menu-btn primary">CONTINUE</button>
+        <button class="menu-btn" data-action="back-menu">BACK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Physics debug overlay (F3) -->
+  <div id="fps-monitor" class="fps-monitor hidden"></div>
+  <div id="physics-debug" class="physics-debug hidden"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

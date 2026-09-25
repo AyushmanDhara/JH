@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — JH Safety Sim</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #060d18;
+      --panel: rgba(12, 24, 42, 0.8);
+      --cyan: #00e5ff;
+      --green: #00ff9d;
+      --text: #e8f0ff;
+      --muted: #8ba3c7;
+      --border: rgba(0, 229, 255, 0.18);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.15rem;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+    }
+    a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    a:hover { color: var(--cyan); }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .metric .val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.6rem;
+      color: var(--green);
+    }
+    .metric .lbl {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-top: 0.25rem;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .chart-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    .chart-card h3 {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      margin-bottom: 0.75rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; letter-spacing: 0.06em; }
+    .table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: auto;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge.pass { background: rgba(0,255,157,0.15); color: var(--green); }
+    .badge.fail { background: rgba(255,59,59,0.15); color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ADMIN DASHBOARD</h1>
+    <a href="index.html">← Simulator</a>
+  </header>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <h3>MODULE COMPLETION</h3>
+      <canvas id="chart-modules" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>PASS / FAIL</h3>
+      <canvas id="chart-passfail" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>AVERAGE SCORE BY MODULE</h3>
+      <canvas id="chart-scores" height="180"></canvas>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Module</th>
+          <th>Score</th>
+          <th>Status</th>
+          <th>Certificate ID</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Demo data + any local certificates
+    const demo = [
+      { traineeName: 'Ramesh Kumar', moduleName: 'Fire & Explosion Response', score: 92, passed: true, id: 'JH-SAFE-2026-A1B2C3', date: '2026-09-18' },
+      { traineeName: 'Sunita Devi', moduleName: 'Gas Leak & Confined Space', score: 78, passed: true, id: 'JH-SAFE-2026-D4E5F6', date: '2026-09-19' },
+      { traineeName: 'Amit Singh', moduleName: 'Fire & Explosion Response', score: 65, passed: false, id: 'JH-SAFE-2026-G7H8I9', date: '2026-09-19' },
+      { traineeName: 'Priya Murmu', moduleName: 'PPE Training', score: 88, passed: true, id: 'JH-SAFE-2026-J0K1L2', date: '2026-09-20' },
+      { traineeName: 'Birsa Soren', moduleName: 'Gas Leak & Confined Space', score: 71, passed: true, id: 'JH-SAFE-2026-M3N4O5', date: '2026-09-21' },
+      { traineeName: 'Anjali Toppo', moduleName: 'Fire & Explosion Response', score: 95, passed: true, id: 'JH-SAFE-2026-P6Q7R8', date: '2026-09-21' },
+      { traineeName: 'Suresh Oraon', moduleName: 'Machinery Safety', score: 55, passed: false, id: 'JH-SAFE-2026-S9T0U1', date: '2026-09-22' },
+    ];
+
+    function getLocalCerts() {
+      try {
+        return JSON.parse(localStorage.getItem('jh_certificates') || '[]');
+      } catch { return []; }
+    }
+
+    // BUGFIX: traineeName is free text the trainee typed into the simulator.
+    // It was being interpolated straight into innerHTML below (stored XSS —
+    // a name like "<img src=x onerror=...>" would execute here). Escape it.
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[ch]));
+    }
+
+    const all = [...demo, ...getLocalCerts()];
+
+    const total = all.length;
+    const passed = all.filter(r => r.passed).length;
+    const failed = total - passed;
+    const avgScore = Math.round(all.reduce((s, r) => s + r.score, 0) / total) || 0;
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><div class="val">${total}</div><div class="lbl">TOTAL TRAINEES</div></div>
+      <div class="metric"><div class="val">${passed}</div><div class="lbl">PASSED</div></div>
+      <div class="metric"><div class="val">${failed}</div><div class="lbl">FAILED</div></div>
+      <div class="metric"><div class="val">${avgScore}%</div><div class="lbl">AVG SCORE</div></div>
+      <div class="metric"><div class="val">02:18</div><div class="lbl">AVG TIME</div></div>
+    `;
+
+    // Module counts
+    const modCounts = {};
+    const modScores = {};
+    all.forEach(r => {
+      modCounts[r.moduleName] = (modCounts[r.moduleName] || 0) + 1;
+      if (!modScores[r.moduleName]) modScores[r.moduleName] = [];
+      modScores[r.moduleName].push(r.score);
+    });
+    const modLabels = Object.keys(modCounts);
+    const modData = modLabels.map(k => modCounts[k]);
+    const avgByMod = modLabels.map(k => Math.round(modScores[k].reduce((a,b)=>a+b,0)/modScores[k].length));
+
+    const chartOpts = {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#8ba3c7', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#8ba3c7', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#8ba3c7' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      },
+    };
+
+    new Chart(document.getElementById('chart-modules'), {
+      type: 'bar',
+      data: {
+        labels: modLabels.map(l => l.split(' ')[0]),
+        datasets: [{ label: 'Completions', data: modData, backgroundColor: 'rgba(0,229,255,0.5)', borderColor: '#00e5ff', borderWidth: 1 }],
+      },
+      options: chartOpts,
+    });
+
+    new Chart(document.getElementById('chart-passfail'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Passed', 'Failed'],
+        datasets: [{ data: [passed, failed], backgroundColor: ['rgba(0,255,157,0.6)', 'rgba(255,59,59,0.5)'], borderWidth: 0 }],
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#8ba3c7' } } } },
+    });
+
+    new Chart(document.getElementById('chart-scores'), {
+      type: 'bar',
+      data: {
+        labels: modLabels.map(l => l.split(' ')[0]),
+        datasets: [{ label: 'Avg Score', data: avgByMod, backgroundColor: 'rgba(0,255,157,0.45)', borderColor: '#00ff9d', borderWidth: 1 }],
+      },
+      options: chartOpts,
+    });
+
+    document.getElementById('tbody').innerHTML = all.map(r => `
+      <tr>
+        <td>${escapeHtml(r.traineeName)}</td>
+        <td>${escapeHtml(r.moduleName)}</td>
+        <td>${escapeHtml(r.score)}%</td>
+        <td><span class="badge ${r.passed ? 'pass' : 'fail'}">${r.passed ? 'PASSED' : 'FAILED'}</span></td>
+        <td style="font-family:monospace;font-size:0.8rem">${escapeHtml(r.id)}</td>
+        <td>${escapeHtml(r.date)}</td>
+      </tr>
+    `).join('');
+  </script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certificate Verification — JH Safety Sim</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #060d18;
+      --panel: rgba(12, 24, 42, 0.85);
+      --cyan: #00e5ff;
+      --green: #00ff9d;
+      --text: #e8f0ff;
+      --muted: #8ba3c7;
+      --border: rgba(0, 229, 255, 0.2);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 420px;
+      width: 100%;
+      backdrop-filter: blur(12px);
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      color: var(--text);
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.85rem;
+      border: 1px solid var(--cyan);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0,229,255,0.25), rgba(0,255,157,0.15));
+      color: var(--cyan);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+    }
+    button:hover { box-shadow: 0 0 20px rgba(0,229,255,0.35); }
+    .result {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border-radius: 8px;
+      display: none;
+    }
+    .result.visible { display: block; }
+    .result.valid { border: 1px solid var(--green); background: rgba(0,255,157,0.08); }
+    .result.invalid { border: 1px solid #ff3b3b; background: rgba(255,59,59,0.08); }
+    .status {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem;
+      margin-bottom: 0.75rem;
+    }
+    .result.valid .status { color: var(--green); }
+    .result.invalid .status { color: #ff3b3b; }
+    .detail { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .detail strong { color: var(--text); }
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 1.25rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .back:hover { color: var(--cyan); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>CERTIFICATE VERIFICATION</h1>
+    <label for="cert-id">Certificate ID</label>
+    <input id="cert-id" type="text" placeholder="JH-SAFE-2026-XXXXXXXX" />
+    <button id="btn-verify">VERIFY</button>
+    <div id="result" class="result">
+      <div class="status" id="status-text"></div>
+      <div id="details"></div>
+    </div>
+    <a class="back" href="index.html">← Back to Simulator</a>
+  </div>
+  <script type="module">
+    const DB_NAME = 'jh_safety_sim';
+    const STORE = 'certificates';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE)) {
+            db.createObjectStore(STORE, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function findCertInLocalStorage(id) {
+      try {
+        const list = JSON.parse(localStorage.getItem('jh_certificates') || '[]');
+        return list.find(c => c.id === id) || null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function findCert(id) {
+      // Try IndexedDB first.
+      try {
+        const db = await openDB();
+        const fromDb = await new Promise((resolve) => {
+          const tx = db.transaction(STORE, 'readonly');
+          const req = tx.objectStore(STORE).get(id);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+        if (fromDb) return fromDb;
+      } catch {
+        // IndexedDB unavailable — fall through to localStorage below.
+      }
+      // BUGFIX: this used to only be reached if openDB() *threw*. But a cert
+      // can legitimately exist only in localStorage (saved before IndexedDB
+      // finished initializing) even though IndexedDB opens fine and simply
+      // doesn't have that record — so a real, valid certificate could come
+      // back "NOT FOUND". Always check localStorage as a second source too.
+      return findCertInLocalStorage(id);
+    }
+
+    // BUGFIX: traineeName/moduleName/date are free text / derived from it and
+    // were interpolated straight into innerHTML below (stored XSS). Escape.
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[ch]));
+    }
+
+    // Pre-fill from URL
+    const params = new URLSearchParams(location.search);
+    const preId = params.get('id');
+    if (preId) document.getElementById('cert-id').value = preId;
+
+    document.getElementById('btn-verify').addEventListener('click', async () => {
+      const id = document.getElementById('cert-id').value.trim();
+      const result = document.getElementById('result');
+      const status = document.getElementById('status-text');
+      const details = document.getElementById('details');
+
+      if (!id) {
+        result.className = 'result visible invalid';
+        status.textContent = 'INVALID';
+        details.innerHTML = '<div class="detail">Please enter a Certificate ID.</div>';
+        return;
+      }
+
+      const cert = await findCert(id);
+      if (cert && cert.passed) {
+        result.className = 'result visible valid';
+        status.textContent = 'VALID';
+        details.innerHTML = `
+          <div class="detail">Trainee: <strong>${escapeHtml(cert.traineeName)}</strong></div>
+          <div class="detail">Module: <strong>${escapeHtml(cert.moduleName)}</strong></div>
+          <div class="detail">Score: <strong>${escapeHtml(cert.score)}%</strong></div>
+          <div class="detail">Date: <strong>${escapeHtml(cert.date)}</strong></div>
+          <div class="detail">Certificate ID: <strong>${escapeHtml(cert.id)}</strong></div>
+        `;
+      } else {
+        result.className = 'result visible invalid';
+        status.textContent = 'NOT FOUND / INVALID';
+        details.innerHTML = '<div class="detail">No matching valid certificate in local demo data.</div>';
+      }
+    });
+
+    // Auto-verify if ID in URL
+    if (preId) document.getElementById('btn-verify').click();
+  </script>
+</body>
+</html>
